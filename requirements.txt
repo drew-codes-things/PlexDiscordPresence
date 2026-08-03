@@ -1,0 +1,4 @@
+plexapi
+python-dotenv
+pypresence
+websocket-client
