@@ -174,3 +174,7 @@ pyinstaller --onefile --name PlexDiscordPresence main.py    # -> dist/PlexDiscor
 - [`pypresence`](https://github.com/qwertyquerty/pypresence) - Discord Rich Presence IPC client. New to this repo; actively maintained and MIT-licensed.
 - [`websocket-client`](https://github.com/websocket-client/websocket-client) - used internally by `plexapi`'s notification listener. New to this repo; actively maintained and Apache-2.0-licensed.
 - [`pyinstaller`](https://github.com/pyinstaller/pyinstaller) - build-time only (`requirements-build.txt`), not shipped in any release artifact. Used to produce the standalone binaries. Actively maintained.
+
+## License
+
+[MIT](LICENSE)
