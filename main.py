@@ -1,6 +1,3 @@
-"""Entry point: ties plex_watcher -> presence together via the websocket
-notification listener."""
-
 import logging
 import os
 import sys
@@ -34,6 +31,7 @@ BASE_DIR = _resolve_base_dir()
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 
 DEFAULT_DISCORD_CLIENT_ID = "1533953665763901572"
+RECONNECT_DELAY_SECONDS = 30
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -64,11 +62,28 @@ def main():
     try:
         while True:
             time.sleep(1)
+            if not watcher.is_running():
+                watcher = reconnect(token, server_name, presence_client, watcher)
     except KeyboardInterrupt:
         logger.info("Shutting down.")
     finally:
         watcher.stop()
         presence_client.close()
+
+
+def reconnect(token, server_name, presence_client, old_watcher):
+    old_watcher.stop()
+    presence_client.update(None)
+    while True:
+        logger.warning("Lost the Plex connection; retrying in %ds.", RECONNECT_DELAY_SECONDS)
+        time.sleep(RECONNECT_DELAY_SECONDS)
+        try:
+            server = connect_to_plex(token, server_name)
+        except Exception as exc:
+            logger.warning("Reconnect failed: %s", exc)
+            continue
+        logger.info("Reconnected to Plex.")
+        return start_watching(server, presence_client)
 
 
 if __name__ == "__main__":

@@ -142,7 +142,8 @@ Create a task with:
 ## Troubleshooting
 
 - **Nothing shows up in Discord:** confirm the Discord desktop client is running on this machine (not the Plex server), and check the script's log output for "Could not connect to Discord".
-- **Poster doesn't show:** some Plex agents don't set a poster/thumb for a given title - presence still shows title and progress without it. Poster URLs over 256 characters are also dropped automatically (logged once) since Discord rejects them.
+- **Poster doesn't show:** the poster comes from the title's metadata agent (e.g. TMDB), never from your Plex server - a server image URL would expose your Plex token to anyone viewing your Discord profile. Titles with no agent poster (e.g. unmatched or personal media) show title and progress without one. Episodes use their show's poster.
+- **Plex restarted or the network dropped:** the activity clears and the app reconnects by itself every 30 seconds. Poster URLs over 256 characters are also dropped automatically (logged once) since Discord rejects them.
 - **`PLEX_USER_TOKEN` stopped working:** delete it from `.env` and rerun `python main.py` to redo the sign-in flow.
 - **Nothing updates when you play something:** confirm playback is actually happening on the server named in `PLEX_SERVER_NAME` - only that specific server's websocket feed is being watched, not other servers on your account.
 

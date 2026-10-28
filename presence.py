@@ -1,6 +1,3 @@
-"""Builds Discord Activity payloads from normalized Plex state and owns
-the pypresence IPC connection (connect/reconnect/update/clear)."""
-
 import logging
 import time
 
@@ -27,9 +24,11 @@ def build_activity_payload(now_playing, now=None):
         state = "Watching"
     else:
         details = now_playing["show_name"]
-        state = "S{:02d}E{:02d} • {}".format(
-            now_playing["season"], now_playing["episode"], now_playing["title"]
-        )
+        season, episode = now_playing["season"], now_playing["episode"]
+        if season is not None and episode is not None:
+            state = f"S{season:02d}E{episode:02d} • {now_playing['title']}"
+        else:
+            state = now_playing["title"]
 
     if now_playing["is_paused"]:
         state = f"{state} (Paused)"

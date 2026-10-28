@@ -1,15 +1,5 @@
-"""Watches Plex for playback state changes over its websocket notification
-feed and normalizes them into a plain dict presence.py can turn into a
-Discord Activity payload.
-
-Unlike polling the REST `/status/sessions` endpoint, the websocket feed
-works for non-owner (shared/friend) Plex accounts too: Plex only relays
-"playing" notifications for sessions the connecting account already has
-visibility into, so no session-list lookup (which non-owners are forbidden
-from making) is needed to know a notification is about "your" playback.
-"""
-
 import logging
+from urllib.parse import urlsplit
 
 from plexapi.myplex import MyPlexAccount
 
@@ -23,7 +13,20 @@ def connect_to_plex(token, server_name):
     return account.resource(server_name).connect()
 
 
-def normalize_item(item, view_offset_ms, is_paused):
+TMDB_ORIGINAL_SIZE = "/t/p/original/"
+TMDB_PRESENCE_SIZE = "/t/p/w500/"
+
+
+def public_poster_url(item):
+    source = item.show() if item.type == "episode" else item
+    for poster in source.posters():
+        parts = urlsplit(poster.key or "")
+        if parts.scheme == "https" and not parts.query:
+            return poster.key.replace(TMDB_ORIGINAL_SIZE, TMDB_PRESENCE_SIZE, 1)
+    return None
+
+
+def normalize_item(item, view_offset_ms, is_paused, poster_url=None):
     media_type = item.type
     if media_type not in ("movie", "episode"):
         return None
@@ -35,7 +38,7 @@ def normalize_item(item, view_offset_ms, is_paused):
         "season": None,
         "episode": None,
         "year": item.year,
-        "poster_url": item.thumbUrl,
+        "poster_url": poster_url,
         "duration_ms": item.duration or 0,
         "view_offset_ms": view_offset_ms or 0,
         "is_paused": is_paused,
@@ -50,15 +53,13 @@ def normalize_item(item, view_offset_ms, is_paused):
 
 
 class PlexSessionWatcher:
-    """Turns a server's websocket notification feed into now-playing dicts
-    delivered to `callback`. `callback` receives `None` when playback stops.
-    """
 
     def __init__(self, server, callback):
         self._server = server
         self._callback = callback
         self._listener = None
         self._item_cache = {}
+        self._poster_cache = {}
         self._last_session_key = None
         self._last_state = None
 
@@ -66,6 +67,9 @@ class PlexSessionWatcher:
         self._listener = self._server.startAlertListener(
             callback=self._handle_alert, callbackError=self._handle_error
         )
+
+    def is_running(self):
+        return self._listener is not None and self._listener.is_alive()
 
     def stop(self):
         if self._listener is not None:
@@ -106,6 +110,7 @@ class PlexSessionWatcher:
             item,
             view_offset_ms=notification.get("viewOffset", 0),
             is_paused=(state == "paused"),
+            poster_url=self._poster_for(item),
         )
         if now_playing is not None:
             self._callback(now_playing)
@@ -122,6 +127,15 @@ class PlexSessionWatcher:
             return None
         self._item_cache[rating_key] = item
         return item
+
+    def _poster_for(self, item):
+        if item.ratingKey not in self._poster_cache:
+            try:
+                self._poster_cache[item.ratingKey] = public_poster_url(item)
+            except Exception as exc:
+                logger.warning("Failed to look up a poster for '%s': %s", item.title, exc)
+                return None
+        return self._poster_cache[item.ratingKey]
 
     def _handle_error(self, error):
         logger.warning("Plex notification listener error: %s", error)

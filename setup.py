@@ -1,6 +1,3 @@
-"""First-run Plex sign-in: PIN login (no manual token copy/paste) followed
-by Plex server selection. Persists both into the .env file."""
-
 import webbrowser
 
 from dotenv import set_key
