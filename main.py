@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from plex_watcher import PlexSessionWatcher, connect_to_plex
 from presence import PlexPresenceClient
-from setup import run_first_time_setup
+from first_run import run_first_time_setup
 
 
 def _resolve_base_dir():
