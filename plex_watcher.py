@@ -15,13 +15,27 @@ def connect_to_plex(token, server_name):
 
 TMDB_ORIGINAL_SIZE = "/t/p/original/"
 TMDB_PRESENCE_SIZE = "/t/p/w500/"
+PLEX_SERVER_HOST_SUFFIX = ".plex.direct"
+
+
+def is_public_image_url(url):
+    parts = urlsplit(url or "")
+    host = (parts.hostname or "").lower()
+    return (
+        parts.scheme == "https"
+        and bool(host)
+        and not host.endswith(PLEX_SERVER_HOST_SUFFIX)
+        and not parts.query
+        and not parts.fragment
+        and parts.username is None
+        and parts.password is None
+    )
 
 
 def public_poster_url(item):
     source = item.show() if item.type == "episode" else item
     for poster in source.posters():
-        parts = urlsplit(poster.key or "")
-        if parts.scheme == "https" and not parts.query:
+        if is_public_image_url(poster.key):
             return poster.key.replace(TMDB_ORIGINAL_SIZE, TMDB_PRESENCE_SIZE, 1)
     return None
 
