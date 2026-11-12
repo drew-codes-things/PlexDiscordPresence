@@ -7,12 +7,22 @@ from pypresence.exceptions import PyPresenceException
 logger = logging.getLogger(__name__)
 
 MAX_IMAGE_URL_LENGTH = 256
+MIN_TEXT_LENGTH = 2
+MAX_TEXT_LENGTH = 128
+ELLIPSIS = "..."
 
 
 def resolve_poster_url(poster_url):
     if poster_url and len(poster_url) > MAX_IMAGE_URL_LENGTH:
         return None, True
     return poster_url, False
+
+
+def fit_discord_text(text):
+    text = str(text or "")
+    if len(text) > MAX_TEXT_LENGTH:
+        text = text[: MAX_TEXT_LENGTH - len(ELLIPSIS)] + ELLIPSIS
+    return text.ljust(MIN_TEXT_LENGTH)
 
 
 def build_activity_payload(now_playing, now=None):
@@ -33,7 +43,7 @@ def build_activity_payload(now_playing, now=None):
     if now_playing["is_paused"]:
         state = f"{state} (Paused)"
 
-    payload = {"details": details, "state": state}
+    payload = {"details": fit_discord_text(details), "state": fit_discord_text(state)}
 
     if poster_url:
         payload["large_image"] = poster_url
@@ -41,9 +51,9 @@ def build_activity_payload(now_playing, now=None):
     if not now_playing["is_paused"]:
         current_time = time.time() if now is None else now
         start = current_time - (now_playing["view_offset_ms"] / 1000)
-        end = start + (now_playing["duration_ms"] / 1000)
         payload["start"] = int(start)
-        payload["end"] = int(end)
+        if now_playing["duration_ms"] > 0:
+            payload["end"] = int(start + now_playing["duration_ms"] / 1000)
 
     return payload, poster_dropped
 
