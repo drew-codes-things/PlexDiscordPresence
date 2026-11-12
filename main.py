@@ -37,8 +37,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
-def start_watching(server, presence_client):
-    watcher = PlexSessionWatcher(server, callback=presence_client.update)
+def start_watching(server, names, presence_client):
+    watcher = PlexSessionWatcher(server, callback=presence_client.update, account_names=names)
     watcher.start()
     return watcher
 
@@ -53,9 +53,9 @@ def main():
 
     client_id = os.getenv("DISCORD_CLIENT_ID") or DEFAULT_DISCORD_CLIENT_ID
 
-    server = connect_to_plex(token, server_name)
+    server, names = connect_to_plex(token, server_name)
     presence_client = PlexPresenceClient(client_id)
-    watcher = start_watching(server, presence_client)
+    watcher = start_watching(server, names, presence_client)
 
     logger.info("Plex Discord presence started. Listening for playback events.")
 
@@ -78,12 +78,12 @@ def reconnect(token, server_name, presence_client, old_watcher):
         logger.warning("Lost the Plex connection; retrying in %ds.", RECONNECT_DELAY_SECONDS)
         time.sleep(RECONNECT_DELAY_SECONDS)
         try:
-            server = connect_to_plex(token, server_name)
+            server, names = connect_to_plex(token, server_name)
         except Exception as exc:
             logger.warning("Reconnect failed: %s", exc)
             continue
         logger.info("Reconnected to Plex.")
-        return start_watching(server, presence_client)
+        return start_watching(server, names, presence_client)
 
 
 if __name__ == "__main__":

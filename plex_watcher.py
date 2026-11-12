@@ -1,6 +1,7 @@
 import logging
 from urllib.parse import urlsplit
 
+from plexapi.exceptions import Unauthorized
 from plexapi.myplex import MyPlexAccount
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,12 @@ RELEVANT_STATES = ("playing", "paused", "stopped")
 
 def connect_to_plex(token, server_name):
     account = MyPlexAccount(token=token)
-    return account.resource(server_name).connect()
+    server = account.resource(server_name).connect()
+    return server, account_names(account)
+
+
+def account_names(account):
+    return tuple(name for name in (account.username, account.title) if name)
 
 
 TMDB_ORIGINAL_SIZE = "/t/p/original/"
@@ -68,12 +74,15 @@ def normalize_item(item, view_offset_ms, is_paused, poster_url=None):
 
 class PlexSessionWatcher:
 
-    def __init__(self, server, callback):
+    def __init__(self, server, callback, account_names=()):
         self._server = server
         self._callback = callback
+        self._account_names = frozenset(account_names)
         self._listener = None
         self._item_cache = {}
         self._poster_cache = {}
+        self._session_ownership = {}
+        self._sessions_visible = True
         self._last_session_key = None
         self._last_state = None
 
@@ -94,16 +103,18 @@ class PlexSessionWatcher:
         if data.get("type") != "playing":
             return
 
-        notifications = data.get("PlaySessionStateNotification") or []
-        if not notifications:
-            return
+        for notification in data.get("PlaySessionStateNotification") or []:
+            self._handle_notification(notification)
 
-        notification = notifications[0]
+    def _handle_notification(self, notification):
         state = notification.get("state")
         if state not in RELEVANT_STATES:
             return
 
         session_key = notification.get("sessionKey")
+        if not self._is_own_session(session_key):
+            return
+
         if session_key != self._last_session_key:
             if state != "playing" and self._last_state == "playing":
                 return
@@ -128,6 +139,27 @@ class PlexSessionWatcher:
         )
         if now_playing is not None:
             self._callback(now_playing)
+
+    def _is_own_session(self, session_key):
+        if not self._sessions_visible:
+            return True
+        if session_key in self._session_ownership:
+            return self._session_ownership[session_key]
+        try:
+            sessions = self._server.sessions()
+        except Unauthorized:
+            logger.info("This account cannot list server sessions; Plex only sends it its own playback.")
+            self._sessions_visible = False
+            return True
+        except Exception as exc:
+            logger.warning("Could not check who owns Plex session %s: %s", session_key, exc)
+            return False
+        match = next((entry for entry in sessions if str(entry.sessionKey) == str(session_key)), None)
+        if match is None:
+            return False
+        is_own = not self._account_names.isdisjoint(match.usernames)
+        self._session_ownership[session_key] = is_own
+        return is_own
 
     def _fetch_item(self, rating_key):
         if rating_key is None:

@@ -15,7 +15,7 @@ plex_watcher.py --(NowPlaying | None)--> presence.py --(IPC)--> Discord client
 
 `plex_watcher.py` opens a websocket connection to Plex's notification feed and normalizes each playback state change into a plain dict (or `None` when playback stops). `presence.py` turns that into a Discord Activity payload and pushes it over IPC via `pypresence`, clearing presence when nothing is playing. `main.py` wires the two together and stays alive while the websocket listener's own background thread does the work. `first_run.py` holds the one-time Plex sign-in and server picker.
 
-This is event-driven rather than polling: it works even if you're not the Plex server's owner. Plex's REST "now playing" endpoint (`/status/sessions`) is restricted to the server owner/admin, but the websocket notification feed isn't - Plex only relays "playing" events for sessions the connecting account already has visibility into, so a shared/friend account sees its own playback without needing admin access.
+This is event-driven rather than polling: it works even if you're not the Plex server's owner. Plex's REST "now playing" endpoint (`/status/sessions`) is restricted to the server owner/admin, but the websocket notification feed isn't - Plex only relays "playing" events for sessions the connecting account already has visibility into, so a shared/friend account sees its own playback without needing admin access. If the account can list the server's sessions (it owns or administers the server), each playback event is checked against `/status/sessions` and only sessions signed in as this account are shown, so other people's viewing never reaches your Discord status.
 
 ## Download
 
