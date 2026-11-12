@@ -149,7 +149,7 @@ Create a task with:
 
 ## Building the packages
 
-Releases are built automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) when a `v*.*.*` tag is pushed, using a matrix of GitHub-hosted Windows/macOS/Linux runners (PyInstaller can't cross-compile - each platform's binary has to be built on that platform). To cut a release: bump `VERSION`, commit, then `git tag vX.Y.Z && git push --tags`.
+Releases are built automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) when a `v*.*.*` tag is pushed, using a matrix of GitHub-hosted Windows/macOS/Linux runners (PyInstaller can't cross-compile - each platform's binary has to be built on that platform). The workflow runs the test suite (`pip install -r requirements.txt pytest && python -m pytest -q`) first and builds nothing if a test fails. To cut a release: bump `VERSION`, commit, then `git tag vX.Y.Z && git push --tags`.
 
 To build locally instead:
 
